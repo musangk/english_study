@@ -1,0 +1,3 @@
+# Raw downloaded captions (regenerate with scripts/extract.py — see its docstring)
+raw/
+.DS_Store
