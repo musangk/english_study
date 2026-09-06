@@ -1,14 +1,20 @@
 #!/usr/bin/env python3
 """
-Extract clean study sentences from the YouTube auto-captions of
-"9시간 중급 그래머 인 유즈 Unit 1~145" (English Grammar in Use / Intermediate).
+Extract clean study sentences — with accurate start/end timestamps — from the
+YouTube auto-captions of "9시간 중급 그래머 인 유즈 Unit 1~145"
+(English Grammar in Use / Intermediate).
 
 Pipeline:
   1. Read the json3 caption file (timed ASR lines).
-  2. Reconstruct proper sentences across the awkward time-based line breaks.
-  3. Drop the second reading of every sentence (the video reads each example
-     twice) using a time-window de-duplication.
-  4. Split into study "days" of N sentences and write data/sentences.json.
+  2. Turn lines into a word stream, each word tagged with its line's start/end.
+  3. Reconstruct sentences across the awkward line breaks, keeping each
+     sentence's start (first word) and end (last word) time.
+  4. Drop the video's second reading of every sentence (time-window dedupe),
+     keeping the first reading and its timing.
+  5. Split into study "days" of N sentences → data/sentences.json.
+
+The timestamps let the web app play the ORIGINAL video audio for each sentence
+via the YouTube player (seek to `t`, play until `e`), instead of browser TTS.
 
 Regenerate captions with:
   yt-dlp --skip-download --write-auto-subs --sub-langs "en-orig" \
@@ -19,78 +25,80 @@ import json
 import re
 import os
 
-SRC = os.path.join(os.path.dirname(__file__), "..", "raw", "captions.en-orig.json3")
-OUT = os.path.join(os.path.dirname(__file__), "..", "data", "sentences.json")
+HERE = os.path.dirname(__file__)
+SRC = os.path.join(HERE, "..", "raw", "captions.en-orig.json3")
+OUT = os.path.join(HERE, "..", "data", "sentences.json")
+VIDEO_ID = "NQl-SvgfmtY"
 PER_DAY = 20
 DEDUPE_WINDOW_MS = 90_000  # a repeat within 90s is the video's second reading
 
 ABBR = re.compile(r"\b(Mr|Mrs|Ms|Dr|St|vs|etc|eg|ie|Prof|Sr|Jr|No)\.$", re.I)
-END = re.compile(r"[.?!]+[\"')\]]?(?=\s|$)")
+ENDS = tuple(".?!")
 
 
-def load_lines(path):
+def load_words(path):
+    """Flat stream of (word, startMs, endMs); a line's end = next line's start."""
     data = json.load(open(path, encoding="utf-8"))
-    out = []
+    lines = []
     for e in data["events"]:
         segs = e.get("segs")
         if not segs:
             continue
-        txt = "".join(s.get("utf8", "") for s in segs)
-        txt = re.sub(r"\s+", " ", txt).strip()
+        txt = re.sub(r"\s+", " ", "".join(s.get("utf8", "") for s in segs)).strip()
         if txt:
-            out.append((e.get("tStartMs", 0), txt))
+            lines.append((e.get("tStartMs", 0), txt))
+    words = []
+    for i, (t, txt) in enumerate(lines):
+        end = lines[i + 1][0] if i + 1 < len(lines) else t + 3000
+        toks = txt.split()
+        for w in toks:
+            words.append((w, t, end))
+    return words
+
+
+def reconstruct(words):
+    """Merge words into sentences, tracking start (first word) and end (last word)."""
+    out, cur, start, end = [], [], None, None
+    for w, ws, we in words:
+        if start is None:
+            start = ws
+        cur.append(w)
+        end = we
+        sent = " ".join(cur)
+        if w.endswith(ENDS) and not ABBR.search(sent):
+            out.append((start, end, sent))
+            cur, start, end = [], None, None
+    if cur:
+        out.append((start, end, " ".join(cur)))
     return out
 
 
-def reconstruct(lines):
-    """Merge timed lines into full sentences, tagging each with its start time."""
-    buf, buf_start, sentences = "", None, []
-    for t, txt in lines:
-        if buf_start is None:
-            buf_start = t
-        buf = (buf + " " + txt).strip() if buf else txt
-        while True:
-            chosen = None
-            for m in END.finditer(buf):
-                if ABBR.search(buf[: m.end()].strip()):
-                    continue  # abbreviation, not a real sentence end
-                chosen = m
-                break
-            if not chosen:
-                break
-            sentences.append((buf_start, buf[: chosen.end()].strip()))
-            buf, buf_start = buf[chosen.end():].strip(), t
-    if buf.strip():
-        sentences.append((buf_start, buf.strip()))
-    return sentences
-
-
 def dedupe(sentences):
-    """Remove the second spoken reading of each sentence (within the window)."""
     seen, uniq = {}, []
     norm = lambda s: re.sub(r"[^a-z0-9 ]", "", s.lower()).strip()
-    for t, s in sentences:
-        n = norm(s)
+    for s, e, txt in sentences:
+        n = norm(txt)
         if not n:
             continue
-        if n in seen and (t - seen[n]) <= DEDUPE_WINDOW_MS:
-            seen[n] = t
+        if n in seen and (s - seen[n]) <= DEDUPE_WINDOW_MS:
+            seen[n] = s
             continue
-        seen[n] = t
-        uniq.append((t, s))
+        seen[n] = s
+        uniq.append((s, e, txt))
     return uniq
 
 
 def main():
-    lines = load_lines(SRC)
-    sentences = dedupe(reconstruct(lines))
-    items = [
-        {"id": i + 1, "t": round(t / 1000, 1), "day": i // PER_DAY + 1, "en": s}
-        for i, (t, s) in enumerate(sentences)
-    ]
+    sentences = dedupe(reconstruct(load_words(SRC)))
+    items = []
+    for i, (s, e, txt) in enumerate(sentences):
+        start = round(s / 1000, 1)
+        end = round(max(e, s + 400) / 1000, 1)  # ensure end > start
+        items.append({"id": i + 1, "day": i // PER_DAY + 1, "t": start, "e": end, "en": txt})
     total_days = (len(items) + PER_DAY - 1) // PER_DAY
     payload = {
         "source": "https://www.youtube.com/watch?v=NQl-SvgfmtY",
+        "videoId": VIDEO_ID,
         "title": "English Grammar in Use (Intermediate) · Unit 1–145",
         "perDay": PER_DAY,
         "totalSentences": len(items),

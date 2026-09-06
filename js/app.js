@@ -1,6 +1,6 @@
 /* English Grammar in Use — 하루 20문장 학습기
-   - Data: data/sentences.json  (4,388 sentences / 220 days)
-   - Audio: Web Speech API (browser TTS)
+   - Data: data/sentences.json  (4,384 sentences / 220 days, each with t/e timestamps)
+   - Audio: ORIGINAL video audio via YouTube IFrame API (seek t → play → pause at e)
    - Memorization: Leitner spaced repetition, progress in localStorage
 */
 'use strict';
@@ -56,40 +56,58 @@ function dayState(day) {
   return seen === 0 ? 'todo' : seen === it.length ? 'done' : 'partial';
 }
 
-/* ---------- TTS engine ---------- */
-const TTS = {
-  voices: [], voice: null, keepAlive: null,
+/* ---------- Audio engine ---------- */
+/* Audio = ORIGINAL video via YouTube IFrame API.
+   Each sentence has t (start) and e (end); we seek+play just that span. */
+const AU = {
+  yt: null, ready: false, watch: null, timeout: null,
   init() {
-    const pick = () => {
-      this.voices = speechSynthesis.getVoices().filter(v => v.lang && v.lang.toLowerCase().startsWith('en'));
-      this.choose(settings.voiceURI);
-      renderVoiceOptions();
+    const dock = document.createElement('div');
+    dock.id = 'ytDock'; dock.hidden = true;
+    dock.innerHTML = `<div id="ytFrame"></div>
+      <button id="ytClose" aria-label="닫기" title="닫기">✕</button>`;
+    document.body.appendChild(dock);
+    dock.querySelector('#ytClose').onclick = () => { player.stop(); };
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    window.onYouTubeIframeAPIReady = () => {
+      if (!DATA || !DATA.videoId) return;
+      this.yt = new YT.Player('ytFrame', {
+        videoId: DATA.videoId, host: 'https://www.youtube.com',
+        playerVars: { playsinline: 1, controls: 1, rel: 0, modestbranding: 1, origin: location.origin },
+        events: { onReady: () => { this.ready = true; this.setRate(settings.rate); } },
+      });
     };
-    pick();
-    speechSynthesis.onvoiceschanged = pick;
   },
-  choose(uri) {
-    this.voice = this.voices.find(v => v.voiceURI === uri)
-      || this.voices.find(v => /United States|US|en-US/i.test(v.lang + v.name))
-      || this.voices[0] || null;
-  },
-  speak(text) {
+  setRate(r) { try { if (this.ready) this.yt.setPlaybackRate(r); } catch {} },
+  show(v) { const d = $('#ytDock'); if (d) d.hidden = !v; },
+  playSeg(start, end) {
     return new Promise((resolve) => {
-      try { speechSynthesis.cancel(); } catch {}
-      const u = new SpeechSynthesisUtterance(text);
-      if (this.voice) { u.voice = this.voice; u.lang = this.voice.lang; }
-      u.rate = settings.rate; u.pitch = 1;
-      u.onend = u.onerror = () => resolve();
-      // iOS/Safari keep-alive: synthesis pauses itself on long runs
-      clearInterval(this.keepAlive);
-      this.keepAlive = setInterval(() => { if (speechSynthesis.speaking) speechSynthesis.resume(); }, 5000);
-      speechSynthesis.speak(u);
+      if (!this.ready) { warnNoPlayer(); resolve(); return; }
+      clearInterval(this.watch); clearTimeout(this.timeout);
+      this.show(true);
+      try { this.yt.setPlaybackRate(settings.rate); } catch {}
+      this.yt.seekTo(start, true); this.yt.playVideo();
+      let started = false;
+      const rate = Math.max(0.25, settings.rate);
+      const done = () => { clearInterval(this.watch); clearTimeout(this.timeout); try { this.yt.pauseVideo(); } catch {} resolve(); };
+      this.timeout = setTimeout(done, ((end - start) / rate) * 1000 + 9000); // safety
+      this.watch = setInterval(() => {
+        let t; try { t = this.yt.getCurrentTime(); } catch { return; }
+        if (!started) { if (t >= start - 0.4 && t < end) started = true; else return; }
+        if (t >= end) done();
+      }, 100);
     });
   },
-  stop() { clearInterval(this.keepAlive); try { speechSynthesis.cancel(); } catch {} },
+  stop() { clearInterval(this.watch); clearTimeout(this.timeout); try { if (this.ready) this.yt.pauseVideo(); } catch {} this.show(false); },
 };
 const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-async function say(text) { await TTS.speak(text); if (settings.twice) { await sleep(250); await TTS.speak(text); } }
+let _warned = false;
+function warnNoPlayer() { if (_warned) return; _warned = true; alertBar('원본 영상 음성을 불러오는 중입니다. 잠시 후 다시 눌러주세요.'); }
+function alertBar(msg) { const b = document.createElement('div'); b.className = 'toast'; b.textContent = msg; document.body.appendChild(b); setTimeout(() => b.remove(), 2600); }
+/* play a single sentence (twice if enabled) */
+async function say(s) { await AU.playSeg(s.t, s.e); if (settings.twice) { await sleep(200); await AU.playSeg(s.t, s.e); } }
 
 /* ---------- Router ---------- */
 function go(hash) { location.hash = hash; }
@@ -237,7 +255,7 @@ function modeStudy(items) {
       $$('.sent-row', body).forEach(r => r.classList.remove('playing'));
       row.classList.add('playing');
       markSeen(s.id); row.querySelector('.dot').className = 'dot ' + statusOf(s.id);
-      await say(s.en);
+      await say(s);
       row.classList.remove('playing');
     };
   });
@@ -375,8 +393,8 @@ function testSession(items, title, onDone) {
     };
     card.onclick = showAnswer;
     $('#reveal').onclick = (e) => { e.stopPropagation(); showAnswer(); };
-    $('#replay').onclick = (e) => { e.stopPropagation(); say(s.en); };
-    say(s.en); // auto-play prompt
+    $('#replay').onclick = (e) => { e.stopPropagation(); say(s); };
+    say(s); // auto-play prompt (original audio)
   };
   render();
 }
@@ -409,7 +427,7 @@ const player = {
       this.hl(this.idx);
       $('#pNow') && ($('#pNow').textContent = `${this.idx + 1}/${items.length} · ${s.en}`);
       markSeen(s.id);
-      await say(s.en);
+      await say(s);
       if (my !== this.token) return;
       await sleep(settings.gap * 1000);
       if (my !== this.token) return;
@@ -417,7 +435,7 @@ const player = {
     this.finish(title);
   },
   pause() {
-    this.playing = false; this.token++; TTS.stop();
+    this.playing = false; this.token++; AU.stop();
     $('#pPlay') && ($('#pPlay').textContent = '▶︎');
     $('#pNow') && ($('#pNow').textContent = '일시정지 · ▶︎ 로 이어재생');
   },
@@ -428,23 +446,17 @@ const player = {
     bumpStreak();
   },
   stop() {
-    this.playing = false; this.token++; this.idx = 0; TTS.stop();
+    this.playing = false; this.token++; this.idx = 0; AU.stop();
     this.hl && this.hl(-1);
   },
 };
 
 /* ---------- Settings drawer ---------- */
-function renderVoiceOptions() {
-  const sel = $('#voiceSelect'); if (!sel) return;
-  sel.innerHTML = TTS.voices.map(v =>
-    `<option value="${v.voiceURI}" ${TTS.voice && v.voiceURI === TTS.voice.voiceURI ? 'selected' : ''}>${v.name} (${v.lang})</option>`
-  ).join('') || '<option>기기에 영어 음성이 없습니다</option>';
-}
 function openDrawer(open) {
   $('#settingsDrawer').hidden = !open; $('#drawerBackdrop').hidden = !open;
 }
 function initSettingsUI() {
-  $('#rateRange').value = settings.rate; $('#rateVal').textContent = settings.rate.toFixed(2) + '×';
+  $('#rateSelect').value = String(settings.rate);
   $('#gapRange').value = settings.gap; $('#gapVal').textContent = settings.gap.toFixed(1) + '초';
   $('#twiceChk').checked = settings.twice;
   $('#startDate').value = settings.startDate || todayStr();
@@ -453,12 +465,11 @@ function initSettingsUI() {
   $('#drawerBackdrop').onclick = () => openDrawer(false);
   $('#homeBtn').onclick = () => go('home');
 
-  $('#voiceSelect').onchange = (e) => { settings.voiceURI = e.target.value; TTS.choose(e.target.value); save(LS.set, settings); };
-  $('#rateRange').oninput = (e) => { settings.rate = +e.target.value; $('#rateVal').textContent = settings.rate.toFixed(2) + '×'; save(LS.set, settings); };
+  $('#rateSelect').onchange = (e) => { settings.rate = +e.target.value; AU.setRate(settings.rate); save(LS.set, settings); };
   $('#gapRange').oninput = (e) => { settings.gap = +e.target.value; $('#gapVal').textContent = settings.gap.toFixed(1) + '초'; save(LS.set, settings); };
   $('#twiceChk').onchange = (e) => { settings.twice = e.target.checked; save(LS.set, settings); };
   $('#startDate').onchange = (e) => { settings.startDate = e.target.value; save(LS.set, settings); };
-  $('#testVoiceBtn').onclick = () => say('Hello. This is your English study voice.');
+  $('#testVoiceBtn').onclick = () => DATA && say(DATA.sentences[0]);
   $('#resetBtn').onclick = () => {
     if (confirm('모든 학습 진도를 삭제할까요? 되돌릴 수 없습니다.')) {
       progress = {}; meta = { cursorDay: 1, lastStudy: '', streak: 0 };
@@ -482,7 +493,6 @@ document.addEventListener('keydown', (e) => {
 /* ---------- Boot ---------- */
 async function boot() {
   initSettingsUI();
-  TTS.init();
   try {
     const res = await fetch('data/sentences.json');
     DATA = await res.json();
@@ -491,6 +501,7 @@ async function boot() {
       <p class="muted small" style="margin-top:8px">GitHub Pages 또는 로컬 서버에서 열어주세요.<br>(file:// 로는 동작하지 않습니다)</p></div>`;
     return;
   }
+  AU.init(); // needs DATA.videoId
   $('#subtitle').textContent = `하루 ${DATA.perDay}문장 · 전체 ${DATA.totalDays}일`;
   window.addEventListener('hashchange', router);
   router();
