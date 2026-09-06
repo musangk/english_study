@@ -202,6 +202,7 @@ function renderDay(day) {
       <button data-m="study">📖 학습</button>
       <button data-m="listen">🎧 듣기</button>
       <button data-m="test">✍️ 시험</button>
+      <button data-m="talk">💬 대화</button>
     </div>
     <div id="modeBody"></div>`;
 
@@ -215,6 +216,7 @@ function setMode(m, day, items) {
   $$('.mode-tabs button').forEach(b => b.classList.toggle('active', b.dataset.m === m));
   if (m === 'study') modeStudy(items);
   else if (m === 'listen') modeListen(items, `Day ${day}`);
+  else if (m === 'talk') modeTalk(items, day);
   else modeTest(items, `Day ${day} 시험`);
 }
 
@@ -263,6 +265,72 @@ function modeListen(items, title) {
 
 /* Test mode: flashcard recall + spaced-repetition grading */
 function modeTest(items, title) { testSession(items, title, () => setMode('study', null, items)); }
+
+/* Talk mode: generate an LLM prompt to practice a conversation with today's sentences */
+const TALK_SCENES = [
+  { key: 'free', label: '🗣 자유 대화', hint: '일상 주제로 자연스럽게' },
+  { key: 'roleplay', label: '🎭 롤플레이', hint: '상황극 (카페·여행 등)' },
+  { key: 'interview', label: '🎤 질문 인터뷰', hint: '나에 대해 묻고 답하기' },
+];
+function buildDayPrompt(items, day, scene) {
+  const list = items.map((s, i) => `${i + 1}. ${s.en}`).join('\n');
+  const sceneLine = {
+    free: 'Have a relaxed everyday conversation with me (hobbies, weekend, work, food, etc.).',
+    roleplay: 'Set up a simple real-life role-play (e.g. ordering at a cafe, checking in at a hotel, asking for directions) and play the other person. Tell me the situation first.',
+    interview: 'Interview me with friendly questions about my life, opinions and plans, so I keep speaking.',
+  }[scene];
+  return `You are my friendly English conversation tutor. I'm a Korean learner studying *English Grammar in Use (Intermediate)*.
+
+Today (Day ${day}) I studied these ${items.length} target sentences / grammar patterns:
+${list}
+
+Please run a short conversation-practice session based on the patterns above.
+
+Format & rules:
+- ${sceneLine}
+- Ask only ONE question at a time, then wait for my reply.
+- Keep your English natural but at my level (simple, everyday).
+- Naturally reuse and recycle today's target grammar patterns throughout the chat so I practice them in context.
+- After each of my replies: (1) react briefly and naturally, (2) if I made any mistake, gently correct it, show the natural version, and add a short 한국어 explanation of *why*, (3) then continue with your next line.
+- Every 4–5 turns, ask me to make my own sentence using one specific pattern from today's list.
+- Keep the conversation itself in English; use Korean only for the correction explanations.
+- Be encouraging and keep it light and fun.
+
+When you're ready, greet me and ask your first question. Let's begin!`;
+}
+function modeTalk(items, day) {
+  const body = $('#modeBody');
+  let scene = 'free';
+  const render = () => {
+    const prompt = buildDayPrompt(items, day, scene);
+    body.innerHTML = `
+      <p class="muted small" style="margin-bottom:10px">아래 프롬프트를 복사해서 ChatGPT·Claude·Gemini 등에 붙여넣으면,
+        <b>오늘 배운 ${items.length}문장</b>으로 영어 대화를 연습할 수 있어요.</p>
+      <div class="mode-tabs" id="sceneTabs" style="margin-bottom:12px">
+        ${TALK_SCENES.map(s => `<button data-s="${s.key}" class="${s.key === scene ? 'active' : ''}" title="${s.hint}">${s.label}</button>`).join('')}
+      </div>
+      <textarea class="prompt-box" id="promptText" readonly rows="12">${prompt.replace(/</g, '&lt;')}</textarea>
+      <div class="card-controls" style="margin-top:12px">
+        <button class="btn primary" id="copyBtn">📋 프롬프트 복사</button>
+      </div>
+      <div class="section-title">바로 열기 (붙여넣기 Ctrl/⌘+V)</div>
+      <div class="link-row">
+        <a class="btn" href="https://chatgpt.com/" target="_blank" rel="noopener">ChatGPT ↗</a>
+        <a class="btn" href="https://claude.ai/new" target="_blank" rel="noopener">Claude ↗</a>
+        <a class="btn" href="https://gemini.google.com/app" target="_blank" rel="noopener">Gemini ↗</a>
+      </div>
+      <p class="kbd-hint">💡 대화가 끝나면 “오늘 문장으로 짧은 퀴즈를 내줘” 라고 이어서 말해보세요.</p>`;
+    $$('#sceneTabs button', body).forEach(b => b.onclick = () => { scene = b.dataset.s; render(); });
+    $('#copyBtn').onclick = async () => {
+      const btn = $('#copyBtn');
+      try { await navigator.clipboard.writeText(prompt); }
+      catch { const t = $('#promptText'); t.focus(); t.select(); document.execCommand('copy'); }
+      btn.textContent = '복사됨 ✓'; btn.classList.add('primary');
+      setTimeout(() => (btn.textContent = '📋 프롬프트 복사'), 1500);
+    };
+  };
+  render();
+}
 
 function testSession(items, title, onDone) {
   const body = $('#modeBody') || app;
