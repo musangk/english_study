@@ -1,5 +1,7 @@
 # 🎧 English Grammar in Use — 하루 20문장
 
+### 👉 **[학습하러 가기 — https://musangk.github.io/english_study/](https://musangk.github.io/english_study/)**
+
 유튜브 **[9시간 중급 그래머 인 유즈 Unit 1~145 통합본](https://www.youtube.com/watch?v=NQl-SvgfmtY)** 영상의
 모든 예문(**4,384문장**)을 하루 20문장씩(**220일**) 외우는 학습 웹앱입니다.
 
@@ -64,6 +66,7 @@ css/style.css       스타일
 js/app.js           앱 로직 (모드·원본음성 재생·간격반복·진도)
 data/sentences.json 4,384문장 / 220일 데이터
 scripts/extract.py  자막 → 문장 추출 스크립트
+scripts/retime.py   문장별 재생 구간 분리(겹침 보정) 스크립트
 ```
 
 ---
