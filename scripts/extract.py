@@ -6,9 +6,11 @@ YouTube auto-captions of "9시간 중급 그래머 인 유즈 Unit 1~145"
 
 Pipeline:
   1. Read the json3 caption file (timed ASR lines).
-  2. Turn lines into a word stream, each word tagged with its line's start/end.
+  2. Turn lines into a word stream, interpolating each word's start/end inside its line.
   3. Reconstruct sentences across the awkward line breaks, keeping each
      sentence's start (first word) and end (last word) time.
+     (Word times are interpolated inside a caption line so that a line
+      holding several sentences yields one span per sentence.)
   4. Drop the video's second reading of every sentence (time-window dedupe),
      keeping the first reading and its timing.
   5. Split into study "days" of N sentences → data/sentences.json.
@@ -37,7 +39,12 @@ ENDS = tuple(".?!")
 
 
 def load_words(path):
-    """Flat stream of (word, startMs, endMs); a line's end = next line's start."""
+    """Flat stream of (word, startMs, endMs).
+
+    A caption line often contains several sentences, so using the line's
+    start/end for every word inside it makes each sentence's playback span
+    the whole line. Instead we interpolate word times inside the line,
+    proportionally to word length (a proxy for speech duration)."""
     data = json.load(open(path, encoding="utf-8"))
     lines = []
     for e in data["events"]:
@@ -51,8 +58,17 @@ def load_words(path):
     for i, (t, txt) in enumerate(lines):
         end = lines[i + 1][0] if i + 1 < len(lines) else t + 3000
         toks = txt.split()
-        for w in toks:
-            words.append((w, t, end))
+        if not toks:
+            continue
+        span = max(end - t, len(toks) * 120)
+        weights = [max(len(w), 1) for w in toks]
+        total = sum(weights)
+        acc = 0
+        for w, wt in zip(toks, weights):
+            ws = t + span * acc / total
+            acc += wt
+            we = t + span * acc / total
+            words.append((w, ws, we))
     return words
 
 
@@ -92,8 +108,8 @@ def main():
     sentences = dedupe(reconstruct(load_words(SRC)))
     items = []
     for i, (s, e, txt) in enumerate(sentences):
-        start = round(s / 1000, 1)
-        end = round(max(e, s + 400) / 1000, 1)  # ensure end > start
+        start = round(s / 1000, 2)
+        end = round(max(e, s + 600) / 1000, 2)  # ensure a minimum playable span
         items.append({"id": i + 1, "day": i // PER_DAY + 1, "t": start, "e": end, "en": txt})
     total_days = (len(items) + PER_DAY - 1) // PER_DAY
     payload = {
