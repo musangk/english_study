@@ -7,6 +7,30 @@
 
 > 듣고 · 따라 말하고 · 시험 보며 가장 빠르게 암기하도록 설계했습니다.
 
+## 🎙 Voice Coach — AI 음성 회화 프레임워크 (영어·일본어)
+
+### 👉 **[Voice Coach 열기 — https://musangk.github.io/english_study/coach/](https://musangk.github.io/english_study/coach/)**
+
+AI와 음성으로 대화한 내용의 **교정이 휘발되지 않고 다음 세션 미션으로 이어지게** 하는 하루 15분 루틴입니다.
+
+| 단계 | 하는 일 |
+|------|------|
+| 🎯 오늘 | 요일별 시나리오와 꼭 써야 할 표현 3개 → 시작 프롬프트 복사 → Claude/ChatGPT **음성 모드**로 대화 |
+| 📥 기록 | 종료 리포트(`lsf-report`)를 붙여넣거나 **공유**(Android)하면 오답·표현 카드가 쌓임 |
+| 🗣 복습 | 틀린 문장을 **말로** 고쳐 말하기. 음성 인식으로 일치율 확인, 간격 반복 |
+| 📈 통계 | Fluency·Accuracy·Range 점수 추이, 자주 틀리는 유형 |
+
+- 같은 규칙과 데이터를 쓰는 **CLI**(`cli/lsf.py`)와 **Claude Skill**(`skill/lang-study-coach`)을 함께 제공
+- 홈 화면에 추가하면 앱처럼 쓸 수 있고, 오프라인에서도 열림
+- 자세한 구조와 언어 추가 방법: **[docs/FRAMEWORK.md](docs/FRAMEWORK.md)**
+
+```bash
+python3 cli/lsf.py --data ~/lsf-store.json init       # 웹에서 내보낸 JSON도 그대로 사용 가능
+python3 cli/lsf.py --data ~/lsf-store.json start      # 시작 프롬프트
+python3 cli/lsf.py --data ~/lsf-store.json log r.md   # 리포트 기록
+node tests/core.test.js && python3 -m unittest discover -s tests
+```
+
 ## ✨ 기능
 
 | 모드 | 설명 |

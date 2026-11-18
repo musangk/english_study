@@ -1,3 +1,8 @@
 # Raw downloaded captions (regenerate with scripts/extract.py — see its docstring)
 raw/
 .DS_Store
+
+# Personal study data (never commit)
+lsf-store*.json
+*.mission.json
+__pycache__/

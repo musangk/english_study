@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://musangk.github.io/english_study/schema/store.schema.json",
+  "title": "lsf store — a learner's personal study data",
+  "description": "Same file is used by the web coach (localStorage key lsf.store.v1, export/import), the CLI (--data file) and any web-service adapter. Keep it out of public repos.",
+  "type": "object",
+  "required": ["version", "profile", "langs"],
+  "properties": {
+    "version": { "const": 1 },
+    "profile": {
+      "type": "object",
+      "properties": {
+        "lang": { "type": "string" },
+        "levels": { "type": "object", "additionalProperties": { "type": "integer", "minimum": 1, "maximum": 6 } },
+        "grammarLink": { "type": "boolean", "description": "Add today's Grammar-in-Use sentences to the English mission" }
+      }
+    },
+    "langs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "sessions": {
+            "type": "array",
+            "items": {
+              "allOf": [{ "$ref": "report.schema.json" }],
+              "properties": {
+                "id": { "type": "string" },
+                "date": { "type": "string", "format": "date" },
+                "mission": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          },
+          "expressions": {
+            "type": "object",
+            "description": "id → card. kind=expr (new expression) or fix (corrected sentence).",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["text", "kind", "box", "due"],
+              "properties": {
+                "text": { "type": "string" },
+                "meaning": { "type": "string" },
+                "kind": { "enum": ["expr", "fix"] },
+                "wrong": { "type": "string" },
+                "type": { "type": "string" },
+                "box": { "type": "integer", "minimum": 1, "maximum": 5 },
+                "due": { "type": "string", "format": "date" },
+                "uses": { "type": "integer" },
+                "added": { "type": "string", "format": "date" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

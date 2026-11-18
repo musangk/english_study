@@ -1,0 +1,6 @@
+{
+  "packs": [
+    { "id": "en", "name": "English", "path": "en/pack.json" },
+    { "id": "ja", "name": "日本語", "path": "ja/pack.json" }
+  ]
+}

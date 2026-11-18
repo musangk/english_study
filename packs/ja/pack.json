@@ -1,0 +1,60 @@
+{
+  "id": "ja",
+  "name": "Japanese",
+  "nativeName": "日本語",
+  "speech": { "tts": "ja-JP", "recognition": "ja-JP", "preferVoices": ["ja-JP"] },
+  "levels": {
+    "scale": "JLPT",
+    "items": [
+      { "value": 1, "label": "N5" }, { "value": 2, "label": "N4" },
+      { "value": 3, "label": "N3" }, { "value": 4, "label": "N2" },
+      { "value": 5, "label": "N1" }, { "value": 6, "label": "Native-like" }
+    ],
+    "default": 2
+  },
+  "rubric": [
+    { "key": "fluency", "label": "Fluency", "desc": "Speaks without long pauses" },
+    { "key": "accuracy", "label": "Accuracy", "desc": "Particles, conjugation and grammar are correct" },
+    { "key": "politeness", "label": "Politeness", "desc": "Uses the right politeness level (です/ます, 敬語)" }
+  ],
+  "errorTypes": [
+    { "key": "particle", "label": "조사(助詞)" },
+    { "key": "conjugation", "label": "활용(活用)" },
+    { "key": "keigo", "label": "경어(敬語)" },
+    { "key": "word-choice", "label": "단어 선택" },
+    { "key": "counter", "label": "조수사" },
+    { "key": "word-order", "label": "어순" },
+    { "key": "naturalness", "label": "자연스러움" },
+    { "key": "pronunciation", "label": "발음/억양" }
+  ],
+  "tracks": [
+    { "key": "daily", "label": "일상·여행 회화", "scenarios": [
+      "ホテルでチェックインし、部屋の問題を伝える",
+      "居酒屋で注文し、おすすめを聞く",
+      "駅で乗り換えと切符について質問する",
+      "お店で商品について質問し、返品をお願いする",
+      "旅行先で知り合った人と雑談する"
+    ] },
+    { "key": "work", "label": "업무", "scenarios": [
+      "自己紹介と担当業務の説明をする",
+      "会議で丁寧に反対意見を述べる",
+      "締め切りの延長をお願いする",
+      "取引先に電話でアポイントを取る",
+      "プロジェクトの進捗を報告する"
+    ] },
+    { "key": "exam", "label": "시험(JLPT 대비)", "scenarios": [
+      "最近読んだニュースについて意見を述べる",
+      "自分の趣味について詳しく説明する",
+      "二つの選択肢を比べて理由を説明する",
+      "失敗した経験とそこから学んだことを話す",
+      "将来の目標について話す"
+    ] }
+  ],
+  "weekly": {
+    "1": "daily", "2": "work", "3": "exam", "4": "daily", "5": "work", "6": "review", "0": "daily"
+  },
+  "prompts": {
+    "start": "You are my {{langName}} conversation partner. Speak only in natural Japanese.\nTrack: {{track}}\nScenario: {{scenario}}\nMy level: about {{level}}. Speak slightly above my level ({{levelUp}}). Use です/ます unless the scenario needs casual speech.\n\nRules:\n1. Stay in the scenario and ask follow-up questions.\n2. I MUST use these expressions during the talk:\n{{expressions}}\n   If I forget one, steer the conversation so I need it.\n3. Do NOT correct me during the conversation. Silently note every mistake for the end.\n4. Keep your turns short (1-2 sentences).\n5. When I say \"終わります\" or \"end session\", stop and wait for my review request.\n\nStart now with your first line.",
+    "review": "End of session. Review everything I said in this conversation.\n\n1) A markdown table: | My sentence | Better version | Error type | Note (in Korean) |\n   Error type must be one of: {{errorTypes}}\n2) 3 natural expressions I should reuse next time (with Korean meaning and reading in hiragana).\n3) Scores 1-6 (1=N5 ... 6=native-like) for: {{rubric}}\n4) Which of my mission expressions I actually used: {{missionList}}\n\nFinally, output the SAME data as a code block with the language tag lsf-report, in this exact JSON shape (no comments):\n```lsf-report\n{\"lang\":\"{{langId}}\",\"track\":\"{{trackKey}}\",\"scenario\":\"{{scenario}}\",\"errors\":[{\"said\":\"\",\"better\":\"\",\"type\":\"\",\"note\":\"\"}],\"expressions\":[{\"text\":\"\",\"meaning\":\"\"}],\"scores\":{{scoreShape}},\"missionUsed\":[\"\"],\"summary\":\"\"}\n```"
+  }
+}

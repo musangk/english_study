@@ -1,0 +1,20 @@
+{
+  "name": "Voice Coach · AI 음성 회화 루틴",
+  "short_name": "Voice Coach",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }],
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "params": { "title": "title", "text": "text", "url": "url" }
+  },
+  "shortcuts": [
+    { "name": "오늘 미션", "url": "./#today" },
+    { "name": "리포트 기록", "url": "./#record" },
+    { "name": "음성 복습", "url": "./#drill" }
+  ]
+}

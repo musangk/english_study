@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://musangk.github.io/english_study/schema/report.schema.json",
+  "title": "lsf-report — one AI conversation session review",
+  "description": "The contract between the AI partner (Claude/ChatGPT/Gemini) and every client (web coach, CLI, skill). The AI prints it in a ```lsf-report code block at the end of a session.",
+  "type": "object",
+  "required": ["lang", "errors", "expressions", "scores"],
+  "properties": {
+    "lang": { "type": "string", "description": "Language pack id, e.g. en, ja" },
+    "track": { "type": "string" },
+    "scenario": { "type": "string" },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["said", "better"],
+        "properties": {
+          "said": { "type": "string" },
+          "better": { "type": "string" },
+          "type": { "type": "string", "description": "One of the pack's errorTypes keys" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "expressions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["text"],
+        "properties": { "text": { "type": "string" }, "meaning": { "type": "string" } }
+      }
+    },
+    "scores": {
+      "type": "object",
+      "description": "Rubric key → 1..6",
+      "additionalProperties": { "type": "number", "minimum": 1, "maximum": 6 }
+    },
+    "missionUsed": { "type": "array", "items": { "type": "string" } },
+    "summary": { "type": "string" }
+  }
+}

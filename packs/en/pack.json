@@ -1,0 +1,69 @@
+{
+  "id": "en",
+  "name": "English",
+  "nativeName": "English",
+  "speech": { "tts": "en-US", "recognition": "en-US", "preferVoices": ["en-AU", "en-US", "en-GB"] },
+  "levels": {
+    "scale": "CEFR",
+    "items": [
+      { "value": 1, "label": "A1" }, { "value": 2, "label": "A2" },
+      { "value": 3, "label": "B1" }, { "value": 4, "label": "B2" },
+      { "value": 5, "label": "C1" }, { "value": 6, "label": "C2" }
+    ],
+    "default": 3
+  },
+  "rubric": [
+    { "key": "fluency", "label": "Fluency", "desc": "Speaks without long pauses; keeps the conversation moving" },
+    { "key": "accuracy", "label": "Accuracy", "desc": "Grammar and word forms are correct" },
+    { "key": "range", "label": "Range", "desc": "Uses varied vocabulary, idioms and sentence structures" }
+  ],
+  "errorTypes": [
+    { "key": "tense", "label": "시제" },
+    { "key": "article", "label": "관사" },
+    { "key": "preposition", "label": "전치사" },
+    { "key": "agreement", "label": "수일치" },
+    { "key": "word-choice", "label": "단어 선택" },
+    { "key": "collocation", "label": "연어(콜로케이션)" },
+    { "key": "word-order", "label": "어순" },
+    { "key": "naturalness", "label": "자연스러움" },
+    { "key": "register", "label": "격식/톤" },
+    { "key": "pronunciation", "label": "발음" }
+  ],
+  "tracks": [
+    { "key": "work", "label": "업무 회의·이메일", "scenarios": [
+      "Explain a technical decision to a skeptical manager",
+      "Disagree politely with a teammate's proposal in a design review",
+      "Give a 2-minute status update and handle follow-up questions",
+      "Negotiate a deadline extension with a global partner team",
+      "Report a security vulnerability and its impact to stakeholders"
+    ] },
+    { "key": "daily", "label": "일상·여행 회화", "scenarios": [
+      "Check in at a hotel and handle a problem with the room",
+      "Order at a busy cafe and ask about the menu",
+      "Small talk with a stranger at a conference dinner",
+      "Ask for directions and transport options in a new city",
+      "Return an item at a store and ask for a refund"
+    ] },
+    { "key": "exam", "label": "시험(스피킹)", "scenarios": [
+      "OPIc-style: describe your home and a recent change you made to it",
+      "Describe a memorable trip and what you learned from it",
+      "Compare two technologies you have used and give your opinion",
+      "Talk about a problem you solved at work, step by step",
+      "Role-play: call a store to ask about a product, then handle an issue"
+    ] },
+    { "key": "tech", "label": "기술 문서·발표", "scenarios": [
+      "Explain how SBOM and VEX work to a non-technical audience",
+      "Walk through an architecture diagram of a multi-stage pipeline",
+      "Present the results of a tool benchmark and your recommendation",
+      "Explain a bug's root cause and the fix in a postmortem",
+      "Answer interview-style questions about your area of expertise"
+    ] }
+  ],
+  "weekly": {
+    "1": "work", "2": "daily", "3": "exam", "4": "work", "5": "daily", "6": "review", "0": "tech"
+  },
+  "prompts": {
+    "start": "You are my {{langName}} sparring partner, not a friendly tutor.\nTrack: {{track}}\nScenario: {{scenario}}\nMy level: about {{level}}. Speak ONE level above me ({{levelUp}}) with natural, idiomatic {{langName}}.\n\nRules:\n1. Stay in the scenario. Push back on my opinions and keep asking \"why\" and \"how\" follow-ups.\n2. I MUST use these expressions during the talk:\n{{expressions}}\n   If I forget one, steer the conversation so I need it.\n3. Do NOT correct me during the conversation. Silently note every mistake for the end.\n4. Keep your turns short (1-3 sentences) so I speak more than you.\n5. When I say \"end session\", stop and wait for my review request.\n\nStart now with your first line.",
+    "review": "End of session. Review everything I said in this conversation.\n\n1) A markdown table: | My sentence | Better version | Error type | Note (in Korean) |\n   Error type must be one of: {{errorTypes}}\n2) 3 natural expressions I should reuse next time (with Korean meaning).\n3) Scores 1-6 (1=A1 ... 6=C2) for: {{rubric}}\n4) Which of my mission expressions I actually used: {{missionList}}\n\nFinally, output the SAME data as a code block with the language tag lsf-report, in this exact JSON shape (no comments):\n```lsf-report\n{\"lang\":\"{{langId}}\",\"track\":\"{{trackKey}}\",\"scenario\":\"{{scenario}}\",\"errors\":[{\"said\":\"\",\"better\":\"\",\"type\":\"\",\"note\":\"\"}],\"expressions\":[{\"text\":\"\",\"meaning\":\"\"}],\"scores\":{{scoreShape}},\"missionUsed\":[\"\"],\"summary\":\"\"}\n```"
+  }
+}
